@@ -1,0 +1,20 @@
+{
+  "name": "hosted",
+  "version": "1.0.0",
+  "description": "backend and web client for hosted",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Brad Vautour",
+  "license": "MIT",
+  "dependencies": {
+    "body-parser": "^1.16.0",
+    "cookie-parser": "^1.4.3",
+    "dotenv": "^4.0.0",
+    "ejs": "^2.5.5",
+    "express": "^4.14.0",
+    "firebase-admin": "^4.0.6",
+    "stripe": "^4.15.0"
+  }
+}

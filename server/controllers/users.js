@@ -1,0 +1,125 @@
+// call the model
+// config code for firebase as a database goes here (modularize this later)
+
+var admin = require("firebase-admin");
+
+//place the serviceAccount key in server/config and rename to your key here
+var serviceAccount = require("../config/hostedFirebaseServiceAccountKey.json");
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+  databaseURL: "https://hostedfirebase.firebaseio.com/",
+  databaseAuthVariableOverride: {
+  uid: "my-service-worker"
+  }
+});
+// disregard for now ---
+var db = admin.database();
+var auth = admin.auth();
+var ref = db.ref();
+var users = ref.child("users");
+// end disregard    ---
+
+
+var secret       = process.env.STRIPE_SECRET;
+var pub          = process.env.STRIPE_PUB;
+var stripe       = require('stripe')(secret);
+
+module.exports = (function(){
+  return {
+      getCustomer: function(req, res){
+        // put your test customer here for now... until we hook up auth and db
+        var customerId = 'cus_9zo8TwmTxkTY4l'; // Load the Stripe Customer ID for your logged in user
+        stripe.customers.retrieve(customerId, function(err, customer) {
+          if (err) {
+            res.status(402).send('Error retrieving customer.');
+          } else {
+            res.json(customer);
+          }
+        })
+      },
+      newCard: function(req, res){
+        // put your test customer here for now... until we hook up auth and db
+        var customerId = 'cus_9zo8TwmTxkTY4l'; // Load the Stripe Customer ID for your logged in user
+        stripe.customers.createSource(customerId, {
+          source: req.body.source
+        }, function(err, source) {
+          if (err) {
+            res.status(402).send('Error attaching source.');
+          } else {
+            res.status(200).end();
+          }
+        });
+      },
+      updateDefaultPaymentMethod: function(req, res){
+        // put your test customer here for now... until we hook up auth and db
+        var customerId = 'cus_9zo8TwmTxkTY4l'; // Load the Stripe Customer ID for your logged in user
+        stripe.customers.update(customerId, {
+          default_source: req.body.defaultSource
+        }, function(err, customer) {
+          if (err) {
+            res.status(402).send('Error setting default source.');
+          } else {
+            res.status(200).end();
+          }
+        });
+      },
+      // ignore these functions for now!
+      register: function(req, res){
+        auth.createUser({
+          email: req.body.email,
+          emailVerified: false,
+          password: req.body.password,
+          displayName: "",
+          photoURL: "http://www.example.com/12345678/photo.png",
+          disabled: false
+        })
+          .then(function(userRecord) {
+            // A UserRecord representation of the newly created user is returned
+            users.push({
+              email: userRecord.email,
+              photoURL: userRecord.photoURL
+            })
+            console.log("Successfully created new user:", userRecord.uid);
+          })
+          .catch(function(error) {
+            console.log("Error creating new user:", error);
+          });
+      },
+      add: function(req, res){
+        users.push({firstName: req.body.firstName, lastName: req.body.lastName});
+      },
+      test_charge: function(req, res){
+        var amount = 999;
+        var email = req.body.stripeEmail;
+        console.log(req.body);
+        stripe.customers.create({
+           email: req.body.stripeEmail,
+          source: req.body.stripeToken
+        })
+        .then(customer =>
+          stripe.charges.create({
+            amount,
+            description: "Sample Charge",
+               currency: "usd",
+               customer: customer.id
+          }));
+      },
+      getAll: function(req, res){
+        users.on("value", function(snapshot) {
+          console.log(snapshot.val());
+          res.json(snapshot.val());
+        }, function (errorObject) {
+          console.log("The read failed: " + errorObject.code);
+        });
+      },
+      getOne: function(req, res){
+        users.orderByChild('firstName').equalTo(req.params.name).on('value', function(snapshot){
+          console.log(snapshot.val());
+          res.json(snapshot.val());
+        }, function (errorObject){
+          console.log("The read failed: " + errorObject.code);
+        })
+      }
+  }
+})();
