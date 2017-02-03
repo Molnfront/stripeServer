@@ -2,44 +2,33 @@
 //controllers
 var user = require('../controllers/users.js');
 
-
 module.exports = function(app){
 
-  var bodyParser   = require('body-parser');
-  app.use(bodyParser.urlencoded({ extended: false }));
-  app.use(bodyParser.json({ type: 'application/vnd.api+json' }));
-
   app.get('/', function(req, res){
-    // res.render('index',{});
     console.log("you are at the root");
-  });
-  // stripe c.r.u.d.
-
-  //retrieve customer
-  app.get('/customer',function(req,res){
-    user.getCustomer(req,res);
-  });
-  //add a new payment source
-  app.post('customer/sources', function(req,res){
-    user.newCard(req,res);
-  });
-  //change default payment method
-  app.post('customer/default_source', function(req, res){
-    user.updateDefaultPaymentMethod(req,res);
+    res.render('index',{});
   });
 
-
-
-
-
-
-
-  // ******* IGNORE THESE FOR NOW ********* //
   //register
   app.post('/register', function(req,res){
     user.register(req,res);
     res.redirect('/');
   });
+    // stripe c.r.u.d.
+  //retrieve customer
+  app.get('/user',function(req,res){
+    user.getCustomer(req,res);
+  });
+  //add a new payment source
+  app.post('user/sources', function(req,res){
+    user.newCard(req,res);
+  });
+  //change default payment method
+  app.post('user/default_source', function(req, res){
+    user.updateDefaultPaymentMethod(req,res);
+  });
+  // ******* IGNORE THESE FOR NOW ********* //
+
   // get all users
   app.get('/users', function(req, res){
     user.getAll(req,res);

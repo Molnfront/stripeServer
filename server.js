@@ -10,22 +10,21 @@ var express      = require('express'),
     port         = process.env.SV_PORT,
     app          = express();
 
+//instantiation
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(cookieParser());
+app.use(express.static(path.join(__dirname,"./client")));
+// migrating to angular
+
+// app.set('views', __dirname + "/client/views");
+// app.set('view engine', 'ejs');
 
 //routes
 require('./server/config/routes.js')(app);
 
 //database config goes here
 require('./server/config/firebase.js');
-
-
-//instantiation
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json({ type: 'application/vnd.api+json' }));
-app.use(cookieParser());
-app.use(express.static(path.join(__dirname,"./client")));
-app.set('views', __dirname + "/client/views");
-app.set('view engine', 'ejs');
 
 
 //listen

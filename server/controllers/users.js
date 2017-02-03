@@ -1,25 +1,8 @@
-// call the model
-// config code for firebase as a database goes here (modularize this later)
+var admin = require('../config/firebase.js');
 
-var admin = require("firebase-admin");
-
-//place the serviceAccount key in server/config and rename to your key here
-var serviceAccount = require("../config/hostedFirebaseServiceAccountKey.json");
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://hostedfirebase.firebaseio.com/",
-  databaseAuthVariableOverride: {
-  uid: "my-service-worker"
-  }
-});
-// disregard for now ---
 var db = admin.database();
 var auth = admin.auth();
-var ref = db.ref();
-var users = ref.child("users");
-// end disregard    ---
-
+var users = db.ref("users");
 
 var secret       = process.env.STRIPE_SECRET;
 var pub          = process.env.STRIPE_PUB;
@@ -27,6 +10,39 @@ var stripe       = require('stripe')(secret);
 
 module.exports = (function(){
   return {
+      //stripe basic crud.
+      register: function(req, res){
+        auth.createUser({
+          email: req.body.email,
+          emailVerified: false,
+          password: req.body.password,
+          displayName: req.body.displayName,
+          photoURL: "http://www.example.com/12345678/photo.png",
+          disabled: false
+        })
+          .then(function(userRecord) {
+            // A UserRecord representation of the newly created user is returned
+            var user = users.child(userRecord.uid);
+            user.set({
+              email: userRecord.email,
+              photoURL: userRecord.photoURL,
+              displayName: userRecord.displayName
+            });
+            console.log("Successfully created new user:", userRecord.uid);
+          })
+          .catch(function(error) {
+            console.log("Error creating new user:", error);
+          });
+      },
+      authenticate: function(req, res){
+
+      },
+      login: function(req, res){
+        auth.getUserByEmail(req.body.email)
+          .then(function(userRecord){
+            console.log('this is a dummy for now!')
+          })
+      },
       getCustomer: function(req, res){
         // put your test customer here for now... until we hook up auth and db
         var customerId = 'cus_9zo8TwmTxkTY4l'; // Load the Stripe Customer ID for your logged in user
@@ -39,17 +55,49 @@ module.exports = (function(){
         })
       },
       newCard: function(req, res){
-        // put your test customer here for now... until we hook up auth and db
-        var customerId = 'cus_9zo8TwmTxkTY4l'; // Load the Stripe Customer ID for your logged in user
-        stripe.customers.createSource(customerId, {
-          source: req.body.source
-        }, function(err, source) {
-          if (err) {
-            res.status(402).send('Error attaching source.');
-          } else {
-            res.status(200).end();
-          }
-        });
+        // auth token being sent && stripe token sent
+        admin.auth().verifyIdToken(idToken)
+          .then(function(decodedToken) {
+            var uid = decodedToken.uid;
+            // ... check the db for that uid
+            users.once(uid, function(data) {
+              // check if stripe_cus_id in that uid
+              if(data.stripe_cus_id){
+                console.log("found existing stripe customer");
+                // if exists we're gonna save the newcard
+                var customerId = data.stripe_cus_id;
+                stripe.customers.createSource(customerId, {
+                  source: req.body.source
+                }, function(err, source) {
+                  if (err) {
+                    res.status(402).send('Error attaching source.');
+                  } else {
+                    res.status(200).end();
+                  }
+                });
+              }else{
+                // else create user and then create source.
+                console.log("no existing customer... creating a new stripe customer")
+                stripe.customers.create({
+                  email: data.email,
+                  source: req.body.stripeToken
+                }).then(function(customer){
+                  stripe.customers.createSource(customer.id, {
+                    source: req.body.source
+                  }, function(err, source) {
+                    if (err) {
+                      res.status(402).send('Error attaching source.');
+                    } else {
+                      res.status(200).end();
+                    }
+                  });
+                });
+              }
+            });
+          }).catch(function(error) {
+            // Handle error
+            console.log("auth error: \n" + error);
+          });
       },
       updateDefaultPaymentMethod: function(req, res){
         // put your test customer here for now... until we hook up auth and db
@@ -65,27 +113,7 @@ module.exports = (function(){
         });
       },
       // ignore these functions for now!
-      register: function(req, res){
-        auth.createUser({
-          email: req.body.email,
-          emailVerified: false,
-          password: req.body.password,
-          displayName: "",
-          photoURL: "http://www.example.com/12345678/photo.png",
-          disabled: false
-        })
-          .then(function(userRecord) {
-            // A UserRecord representation of the newly created user is returned
-            users.push({
-              email: userRecord.email,
-              photoURL: userRecord.photoURL
-            })
-            console.log("Successfully created new user:", userRecord.uid);
-          })
-          .catch(function(error) {
-            console.log("Error creating new user:", error);
-          });
-      },
+
       add: function(req, res){
         users.push({firstName: req.body.firstName, lastName: req.body.lastName});
       },
